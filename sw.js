@@ -1,13 +1,7 @@
-const CACHE = 'menu-guide-v1';
-const STATIC = ['/', '/index.html', '/manifest.json', '/sw.js', '/icon-192.png', '/icon-512.png'];
+const CACHE = 'menu-guide-v2';
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(STATIC.filter(u => !u.includes('icon') || true)))
-      .then(() => self.skipWaiting())
-      .catch(() => self.skipWaiting())
-  );
+  e.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', e => {
@@ -20,12 +14,11 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
-  // Never intercept: API calls, Firebase, or external resources
   if (url.includes('workers.dev') || url.includes('googleapis.com') ||
       url.includes('gstatic.com') || url.includes('firestore.google')) {
     return;
   }
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request).catch(() => caches.match(e.request))
   );
 });
