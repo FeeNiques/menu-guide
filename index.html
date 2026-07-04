@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Menu Guide" />
+  <meta name="theme-color" content="#E8845A" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>Menu Guide</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:      #E8845A;
+      --primary-dark: #C0673E;
+      --secondary:    #6B9E78;
+      --bg:           #FBF7F0;
+      --card:         #FFFFFF;
+      --text:         #2D2420;
+      --muted:        #8A7A72;
+      --border:       #EDE8E0;
+      --shadow:       0 2px 16px rgba(45,36,32,.10);
+      --shadow-sm:    0 1px 4px rgba(45,36,32,.08);
+      --r:            16px;
+      --r-sm:         8px;
+    }
+
+    html { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100%;
+    }
+
+    /* ── SCREENS ───────────────────────────────────────────────────────── */
+    .screen { display: none; min-height: 100dvh; padding: 24px 16px 56px; flex-direction: column; }
+    .screen.active { display: flex; animation: fadeUp .3s ease both; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── PROGRESS DOTS ─────────────────────────────────────────────────── */
+    .progress { display: flex; justify-content: center; gap: 8px; margin-bottom: 28px; }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--border);
+      transition: background .2s, transform .2s;
+    }
+    .dot.on { background: var(--primary); transform: scale(1.25); }
+
+    /* ── TYPE ──────────────────────────────────────────────────────────── */
+    .emoji { font-size: 52px; text-align: center; margin-bottom: 10px; display: block; }
+    h1  { font-size: 26px; font-weight: 700; line-height: 1.25; }
+    h2  { font-size: 20px; font-weight: 700; }
+    .sub { color: var(--muted); font-size: 15px; margin-top: 6px; }
+    .hdr { margin-bottom: 24px; }
+    .section-label {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .08em;
+      color: var(--muted); margin: 18px 0 10px;
+    }
+
+    /* ── PILL CHECKBOXES ───────────────────────────────────────────────── */
+    .pill-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 14px; border-radius: 24px;
+      border: 2px solid var(--border); background: var(--card);
+      font-size: 14px; font-weight: 500; color: var(--muted);
+      cursor: pointer; user-select: none;
+      transition: border-color .15s, background .15s, color .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pill input { display: none; }
+    .pill:has(input:checked) {
+      border-color: var(--primary);
+      background: #FEF0E8;
+      color: var(--primary-dark);
+    }
+    .pill-icon { font-size: 16px; }
+
+    /* ── BUTTONS ───────────────────────────────────────────────────────── */
+    .btn {
+      display: block; width: 100%; padding: 15px; border: none;
+      border-radius: var(--r); font-size: 16px; font-weight: 600;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: background .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn-ghost {
+      background: transparent; color: var(--primary);
+      border: 2px solid var(--primary); margin-top: 12px;
+    }
+    .btn-ghost:hover { background: #FEF0E8; }
+    .btn-ghost.muted { color: var(--muted); border-color: var(--border); }
+
+    /* ── CAMERA ────────────────────────────────────────────────────────── */
+    .camera-card {
+      background: var(--card); border-radius: var(--r);
+      border: 2px dashed var(--border);
+      padding: 32px 20px; text-align: center;
+      cursor: pointer; transition: border-color .2s;
+      margin-bottom: 20px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .camera-card:active { border-color: var(--primary); }
+    .camera-card.has-img { border-style: solid; border-color: var(--secondary); padding: 12px; }
+    #menu-preview { width: 100%; max-height: 240px; object-fit: cover; border-radius: var(--r-sm); display: none; }
+    #menu-photo   { display: none; }
+    .cam-icon { font-size: 44px; margin-bottom: 10px; display: block; }
+    .cam-label { font-size: 15px; font-weight: 600; color: var(--primary); }
+    .cam-sub   { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    /* ── LOADING ───────────────────────────────────────────────────────── */
+    .loading-wrap {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 18px;
+    }
+    .spinner {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 4px solid var(--border); border-top-color: var(--primary);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-txt { font-size: 16px; font-weight: 500; color: var(--muted); }
+    .loading-sub { font-size: 13px; color: var(--muted); }
+
+    /* ── RESULTS ───────────────────────────────────────────────────────── */
+    .coverage {
+      display: flex; align-items: flex-start; gap: 8px;
+      border-radius: var(--r-sm); padding: 10px 12px;
+      font-size: 13px; margin-bottom: 14px;
+    }
+    .coverage.good { background: #EBF4ED; color: #4A7A55; }
+    .coverage.warn { background: #FEF3E2; color: #8A5920; }
+
+    .summary-card {
+      background: var(--card); border-radius: var(--r);
+      padding: 18px; margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+      font-size: 15px; line-height: 1.65; color: var(--text);
+    }
+
+    .rec-heading { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 10px; }
+
+    .rec-card {
+      background: var(--card); border-radius: var(--r);
+      padding: 16px; margin-bottom: 12px;
+      box-shadow: var(--shadow-sm);
+      border-left: 4px solid var(--secondary);
+    }
+    .rec-card.mid { border-left-color: var(--primary); }
+    .rec-card.low { border-left-color: #D4A458; }
+
+    .rec-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+    .rec-name { font-size: 16px; font-weight: 700; }
+    .badge {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 12px;
+    }
+    .badge-high { background: #EBF4ED; color: #3E7A50; }
+    .badge-mid  { background: #FEF0E8; color: #B55A2A; }
+    .badge-low  { background: #FEF3E2; color: #8A5920; }
+
+    .rec-loc  { font-size: 13px; color: var(--muted); }
+    .rec-why  { font-size: 14px; color: var(--text); margin-top: 6px; }
+    .rec-note {
+      font-size: 13px; color: #8A5920;
+      background: #FEF3E2; border-radius: var(--r-sm);
+      padding: 7px 10px; margin-top: 8px;
+    }
+
+    .server-note {
+      background: #EDF4FE; border-radius: var(--r);
+      padding: 14px; font-size: 14px; color: #1D5A9A;
+      margin: 4px 0 20px;
+    }
+
+    .no-results {
+      background: var(--card); border-radius: var(--r); padding: 32px 20px;
+      text-align: center; box-shadow: var(--shadow-sm); margin-bottom: 20px;
+    }
+    .no-results .emoji { font-size: 40px; }
+
+    /* ── ERROR ─────────────────────────────────────────────────────────── */
+    .error-box { background: #FEF0F0; border-radius: var(--r); padding: 18px; color: #8B2222; font-size: 14px; margin-bottom: 20px; }
+
+    /* ── CHAT ──────────────────────────────────────────────────────────── */
+    .chat-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 28px 0 16px;
+    }
+    .chat-divider::before, .chat-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .chat-divider span { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+    .chat-msgs { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+    .bubble {
+      max-width: 86%; padding: 10px 14px;
+      border-radius: 18px; font-size: 14px; line-height: 1.55;
+    }
+    .bubble-user { align-self: flex-end; background: var(--primary); color: #fff; border-bottom-right-radius: 4px; }
+    .bubble-ai   { align-self: flex-start; background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); border-bottom-left-radius: 4px; }
+
+    .typing-wrap { align-self: flex-start; background: var(--card); box-shadow: var(--shadow-sm); border-radius: 18px; border-bottom-left-radius: 4px; padding: 12px 16px; }
+    .typing-dots { display: flex; gap: 4px; }
+    .typing-dot  { width: 6px; height: 6px; background: var(--muted); border-radius: 50%; animation: bounce 1.2s infinite; }
+    .typing-dot:nth-child(2) { animation-delay: .2s; }
+    .typing-dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+
+    .chat-bar {
+      display: flex; gap: 8px; align-items: flex-end;
+      position: sticky; bottom: 0;
+      padding: 10px 0 4px;
+      background: var(--bg);
+    }
+    .chat-input {
+      flex: 1; padding: 11px 14px;
+      border: 2px solid var(--border); border-radius: 22px;
+      font-size: 15px; font-family: inherit; color: var(--text);
+      background: var(--card); outline: none;
+      resize: none; max-height: 120px; line-height: 1.4;
+      transition: border-color .15s;
+    }
+    .chat-input:focus { border-color: var(--primary); }
+    .send-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: none;
+      background: var(--primary); color: #fff; font-size: 18px;
+      cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .send-btn:active { transform: scale(.92); }
+    .send-btn:disabled { background: var(--border); cursor: default; }
+
+    /* ── RETURN VISIT ──────────────────────────────────────────────────── */
+    .return-card { background: var(--card); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow-sm); margin-bottom: 20px; }
+    .return-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .return-tag { background: #FEF0E8; color: var(--primary-dark); border-radius: 12px; padding: 4px 10px; font-size: 13px; font-weight: 500; }
+
+    /* ── IOS INSTALL BANNER ────────────────────────────────────────────── */
+    #install-banner {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      background: var(--card);
+      box-shadow: 0 -4px 20px rgba(0,0,0,.12);
+      padding: 18px 16px 36px;
+      border-radius: 20px 20px 0 0;
+    }
+    #install-banner.hidden { display: none; }
+    .install-row  { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .install-icon { font-size: 32px; }
+    .install-text h3 { font-size: 15px; font-weight: 700; }
+    .install-text p  { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .install-steps { font-size: 13px; line-height: 1.9; color: var(--text); }
+    #install-x {
+      position: absolute; top: 14px; right: 16px;
+      background: none; border: none; font-size: 20px;
+      color: var(--muted); cursor: pointer; padding: 4px;
+    }
+
+    /* ── UTIL ──────────────────────────────────────────────────────────── */
+    .hidden   { display: none !important; }
+    .mt-auto  { margin-top: auto; }
+    .spacer   { flex: 1; }
+  </style>
+</head>
+<body>
+
+<!-- ── iOS Install Banner ───────────────────────────────────────────────── -->
+<div id="install-banner" class="hidden">
+  <button id="install-x">✕</button>
+  <div class="install-row">
+    <div class="install-icon">🍽️</div>
+    <div class="install-text">
+      <h3>Add Menu Guide to your Home Screen</h3>
+      <p>Full app experience — no App Store needed</p>
+    </div>
+  </div>
+  <div class="install-steps">
+    1. Tap the <strong>Share</strong> button ⬆️ at the bottom of Safari<br>
+    2. Scroll down and tap <strong>"Add to Home Screen"</strong><br>
+    3. Tap <strong>"Add"</strong> — you're done!
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 1 — Welcome / Dietary Restrictions                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div id="screen-welcome" class="screen">
+  <div class="progress">
+    <div class="dot on"></div><div class="dot"></div><div class="dot"></div>
+  </div>
+
+  <!-- Return visit -->
+  <div id="welcome-return" class="hidden">
+    <span class="emoji">👋</span>
+    <div class="hdr">
+      <h1>Welcome back!</h1>
+      <p class="sub">Your preferences are saved and ready to go.</p>
+    </div>
+    <div class="return-card">
+      <p style="font-size:13px;font-weight:600;color:var(--muted);">Your dietary restrictions</p>
+      <div class="return-tags" id="return-tags"></div>
+    </div>
+    <button class="btn btn-primary" id="btn-skip">Scan a Menu →</button>
+    <button class="btn btn-ghost" id="btn-edit">Update My Preferences</button>
+  </div>
+
+  <!-- New / edit -->
+  <div id="welcome-new">
+    <span class="emoji">🍽️</span>
+    <div class="hdr">
+      <h1>Hello! Let's find you something delicious.</h1>
+      <p class="sub">Tell me what you need to avoid — I'll handle the rest.</p>
+    </div>
+    <p class="section-label">I need to avoid</p>
+    <div class="pill-grid" id="restrictions-grid"></div>
+    <button class="btn btn-primary mt-auto" id="btn-next-1">Continue →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 2 — Food Preferences                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div id="screen-prefs" class="screen">
+  <div class="progress">
+    <div class="dot on"></div><div class="dot on"></div><div class="dot"></div>
+  </div>
+  <span class="emoji">😋</span>
+  <div class="hdr">
+    <h1>What sounds good right now?</h1>
+    <p class="sub">Pick whatever fits your mood — or skip ahead if you're flexible.</p>
+  </div>
+  <p class="section-label">I'm in the mood for something</p>
+  <div class="pill-grid" id="prefs-grid"></div>
+  <button class="btn btn-primary mt-auto" id="btn-next-2">Let's Find Something Great →</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 3 — Scan + Results + Chat                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div id="screen-scan" class="screen">
+  <div class="progress">
+    <div class="dot on"></div><div class="dot on"></div><div class="dot on"></div>
+  </div>
+
+  <!-- Camera prompt -->
+  <div id="scan-prompt">
+    <span class="emoji">📸</span>
+    <div class="hdr">
+      <h1>Point your camera at the menu</h1>
+      <p class="sub">I'll read it and find everything that works for you.</p>
+    </div>
+    <div class="camera-card" id="camera-card">
+      <span class="cam-icon" id="cam-icon">📷</span>
+      <p  class="cam-label" id="cam-label">Tap to take a photo</p>
+      <p  class="cam-sub"   id="cam-sub">Good lighting helps a lot</p>
+      <img id="menu-preview" alt="Menu preview" />
+    </div>
+    <input type="file" id="menu-photo" accept="image/*" capture="environment" />
+    <button class="btn btn-primary" id="btn-scan" disabled>Analyze Menu</button>
+    <button class="btn btn-ghost"   id="btn-back">← Back</button>
+  </div>
+
+  <!-- Loading -->
+  <div id="scan-loading" class="hidden">
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      <p class="loading-txt">Reading your menu…</p>
+      <p class="loading-sub">Usually takes 5–10 seconds</p>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div id="scan-error" class="hidden">
+    <span class="emoji">😬</span>
+    <div class="hdr"><h1>Something went wrong</h1></div>
+    <div class="error-box" id="error-msg"></div>
+    <button class="btn btn-primary" id="btn-retry">Try Again</button>
+  </div>
+
+  <!-- Results + Chat -->
+  <div id="scan-results" class="hidden">
+    <div id="coverage-wrap"></div>
+    <div id="summary-card" class="summary-card"></div>
+    <p  id="rec-heading" class="rec-heading"></p>
+    <div id="rec-list"></div>
+    <div id="server-wrap"></div>
+
+    <div class="chat-divider"><span>Ask me anything about the menu</span></div>
+    <div class="chat-msgs" id="chat-msgs"></div>
+    <div class="chat-bar">
+      <textarea class="chat-input" id="chat-input" placeholder="Is the soup broth-based? What about the kids menu?" rows="1"></textarea>
+      <button class="send-btn" id="btn-send">➤</button>
+    </div>
+
+    <div style="height:16px"></div>
+    <button class="btn btn-ghost"       id="btn-rescan">📷 Scan Another Menu</button>
+    <button class="btn btn-ghost muted" id="btn-change-prefs" style="margin-top:8px">Change My Preferences</button>
+    <div style="height:48px"></div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+
+<script type="module">
+// ── CONFIG — replace before deploying ─────────────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyALEbqkj9hoDTmO2A9pCiCqrmt_dXu9VtM",
+  authDomain:        "menu-guide-c0715.firebaseapp.com",
+  projectId:         "menu-guide-c0715",
+  storageBucket:     "menu-guide-c0715.firebasestorage.app",
+  messagingSenderId: "619968018898",
+  appId:             "1:619968018898:web:281cc1182c5a6ef79c700b",
+};
+const WORKER_URL = "https://rapid-shape-e75bmenu-guide-worker.bwhittington2013.workers.dev";
+// ──────────────────────────────────────────────────────────────────────────
+
+const RESTRICTIONS = [
+  { id:'dairy',       label:'Dairy',          icon:'🥛' },
+  { id:'gluten',      label:'Gluten / Wheat', icon:'🌾' },
+  { id:'eggs',        label:'Eggs',           icon:'🥚' },
+  { id:'soy',         label:'Soy',            icon:'🫘' },
+  { id:'tree_nuts',   label:'Tree Nuts',      icon:'🌰' },
+  { id:'peanuts',     label:'Peanuts',        icon:'🥜' },
+  { id:'shellfish',   label:'Shellfish',      icon:'🦞' },
+  { id:'fish',        label:'Fish',           icon:'🐟' },
+  { id:'fodmaps',     label:'FODMAPs',        icon:'🫃' },
+  { id:'nightshades', label:'Nightshades',    icon:'🍅' },
+  { id:'pork',        label:'Pork',           icon:'🐷' },
+  { id:'red_meat',    label:'Red Meat',       icon:'🥩' },
+  { id:'alcohol',     label:'Alcohol',        icon:'🚫' },
+  { id:'low_sodium',  label:'Low Sodium',     icon:'🧂' },
+  { id:'low_sugar',   label:'Low Sugar',      icon:'🍬' },
+  { id:'vegetarian',  label:'Vegetarian',     icon:'🥦' },
+  { id:'vegan',       label:'Vegan',          icon:'🌱' },
+];
+
+const PREFERENCES = [
+  { id:'savory',    label:'Savory',       icon:'🧀' },
+  { id:'sweet',     label:'Sweet',        icon:'🍯' },
+  { id:'filling',   label:'Filling',      icon:'💪' },
+  { id:'light',     label:'Light',        icon:'🥗' },
+  { id:'spicy',     label:'Spicy',        icon:'🌶️' },
+  { id:'comfort',   label:'Comfort Food', icon:'🍲' },
+  { id:'fresh',     label:'Fresh',        icon:'🌿' },
+  { id:'protein',   label:'High Protein', icon:'🍗' },
+  { id:'simple',    label:'Simple',       icon:'✨' },
+  { id:'indulgent', label:'Indulgent',    icon:'🎉' },
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+const state = {
+  user: null,
+  restrictions: [],
+  preferences: [],
+  scanResult: null,
+  chatMessages: [],
+  menuContext: null,
+};
+
+// ── DOM ────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+// ── FIREBASE ───────────────────────────────────────────────────────────────
+import { initializeApp }               from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInAnonymously, onAuthStateChanged }
+                                       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc }
+                                       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const fbApp = initializeApp(FIREBASE_CONFIG);
+const auth  = getAuth(fbApp);
+const db    = getFirestore(fbApp);
+
+async function loadPrefs(uid) {
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (snap.exists()) {
+      const d = snap.data();
+      state.restrictions = d.restrictions || [];
+      state.preferences  = d.preferences  || [];
+      return state.restrictions.length > 0;
+    }
+  } catch (e) { console.warn('Firestore load failed', e); }
+  return false;
+}
+
+async function savePrefs() {
+  if (!state.user) return;
+  try {
+    await setDoc(doc(db, 'users', state.user.uid), {
+      restrictions: state.restrictions,
+      preferences:  state.preferences,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  } catch (e) { console.warn('Firestore save failed', e); }
+}
+
+// ── SCREENS ────────────────────────────────────────────────────────────────
+function show(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(screenId).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ── PILL GRID ──────────────────────────────────────────────────────────────
+function buildPills(containerId, items, checked) {
+  const grid = $(containerId);
+  grid.innerHTML = '';
+  items.forEach(item => {
+    const label = document.createElement('label');
+    label.className = 'pill';
+    const inp = document.createElement('input');
+    inp.type = 'checkbox'; inp.name = item.id; inp.value = item.id;
+    if (checked.includes(item.id)) inp.checked = true;
+    const icon = document.createElement('span'); icon.className = 'pill-icon'; icon.textContent = item.icon;
+    label.append(inp, icon, document.createTextNode(item.label));
+    grid.appendChild(label);
+  });
+}
+
+function getChecked(containerId) {
+  return [...document.querySelectorAll(`#${containerId} input:checked`)].map(i => i.value);
+}
+
+// ── RETURN VISIT ───────────────────────────────────────────────────────────
+function showReturn() {
+  $('welcome-return').classList.remove('hidden');
+  $('welcome-new').classList.add('hidden');
+  const wrap = $('return-tags');
+  wrap.innerHTML = '';
+  const items = state.restrictions.length
+    ? state.restrictions.map(id => RESTRICTIONS.find(r => r.id === id)).filter(Boolean)
+    : [{ icon:'✅', label:'No restrictions saved' }];
+  items.forEach(({ icon, label }) => {
+    const t = document.createElement('span');
+    t.className = 'return-tag';
+    t.textContent = `${icon} ${label}`;
+    wrap.appendChild(t);
+  });
+}
+
+function showNew() {
+  $('welcome-return').classList.add('hidden');
+  $('welcome-new').classList.remove('hidden');
+  buildPills('restrictions-grid', RESTRICTIONS, state.restrictions);
+}
+
+// ── IOS BANNER ─────────────────────────────────────────────────────────────
+function maybeShowBanner() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  if (isIOS && !isStandalone && !localStorage.getItem('bannerOff')) {
+    $('install-banner').classList.remove('hidden');
+  }
+}
+$('install-x').addEventListener('click', () => {
+  $('install-banner').classList.add('hidden');
+  localStorage.setItem('bannerOff', '1');
+});
+
+// ── IMAGE HANDLING ─────────────────────────────────────────────────────────
+let imgBase64 = null;
+
+async function compress(file, maxDim = 1600, q = 0.85) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width: w, height: h } = img;
+      if (w > maxDim || h > maxDim) {
+        const r = Math.min(maxDim / w, maxDim / h);
+        w = Math.round(w * r); h = Math.round(h * r);
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', q).split(',')[1]);
+    };
+    img.src = url;
+  });
+}
+
+$('camera-card').addEventListener('click', () => $('menu-photo').click());
+
+$('menu-photo').addEventListener('change', async e => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  imgBase64 = await compress(file);
+  const prev = $('menu-preview');
+  prev.src = 'data:image/jpeg;base64,' + imgBase64;
+  prev.style.display = 'block';
+  $('camera-card').classList.add('has-img');
+  $('cam-icon').textContent  = '✅';
+  $('cam-label').textContent = 'Looking good! Ready to analyze.';
+  $('cam-sub').textContent   = 'Tap the image to retake';
+  $('btn-scan').disabled = false;
+});
+
+function resetCamera() {
+  imgBase64 = null;
+  $('menu-preview').style.display = 'none';
+  $('camera-card').classList.remove('has-img');
+  $('cam-icon').textContent  = '📷';
+  $('cam-label').textContent = 'Tap to take a photo';
+  $('cam-sub').textContent   = 'Good lighting helps a lot';
+  $('btn-scan').disabled = true;
+  $('menu-photo').value = '';
+}
+
+// ── SCAN ───────────────────────────────────────────────────────────────────
+$('btn-scan').addEventListener('click', async () => {
+  if (!imgBase64) return;
+  $('scan-prompt').classList.add('hidden');
+  $('scan-loading').classList.remove('hidden');
+  $('scan-error').classList.add('hidden');
+  $('scan-results').classList.add('hidden');
+
+  try {
+    const res = await fetch(`${WORKER_URL}/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageBase64: imgBase64,
+        imageType: 'image/jpeg',
+        restrictions: state.restrictions,
+        preferences:  state.preferences,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Server error');
+
+    state.scanResult   = data;
+    state.menuContext  = buildContext(data);
+    state.chatMessages = [];
+
+    $('scan-loading').classList.add('hidden');
+    renderResults(data);
+    $('scan-results').classList.remove('hidden');
+
+  } catch (err) {
+    $('scan-loading').classList.add('hidden');
+    $('error-msg').textContent = err.message || 'Could not reach the server. Check your connection and try again.';
+    $('scan-error').classList.remove('hidden');
+  }
+});
+
+$('btn-retry').addEventListener('click', () => {
+  $('scan-error').classList.add('hidden');
+  $('scan-prompt').classList.remove('hidden');
+});
+
+// ── RENDER RESULTS ─────────────────────────────────────────────────────────
+function buildContext(r) {
+  let s = `Coverage: ${r.coverage}\nSummary: ${r.summary}\n\nDishes:\n`;
+  (r.recommendations || []).forEach(rec => {
+    s += `• ${rec.item} — ${rec.location} — ${rec.why} (${Math.round(rec.confidence * 100)}% confident)`;
+    if (rec.note) s += ` | Note: ${rec.note}`;
+    s += '\n';
+  });
+  if (r.ask_server) s += `\nServer questions: ${r.ask_server}`;
+  return s;
+}
+
+function confidenceInfo(score) {
+  if (score >= 0.82) return { cls: '',    badge: 'badge-high', label: 'Safe bet'  };
+  if (score >= 0.60) return { cls: 'mid', badge: 'badge-mid',  label: 'Likely fine' };
+  return                    { cls: 'low', badge: 'badge-low',  label: 'Ask first' };
+}
+
+function renderResults(r) {
+  const recs = r.recommendations || [];
+
+  // Coverage badge
+  const cov = r.coverage || '';
+  const partial = /cut off|partial|couldn.t|limited|dark|blurry|couldn't/i.test(cov);
+  const covWrap = $('coverage-wrap');
+  covWrap.innerHTML = '';
+  if (cov) {
+    const d = document.createElement('div');
+    d.className = `coverage ${partial ? 'warn' : 'good'}`;
+    d.textContent = (partial ? '⚠️  ' : '✅  ') + cov;
+    covWrap.appendChild(d);
+  }
+
+  $('summary-card').textContent = r.summary || '';
+
+  // Recommendations
+  const list = $('rec-list');
+  list.innerHTML = '';
+
+  if (!recs.length) {
+    $('rec-heading').textContent = '';
+    list.innerHTML = `<div class="no-results">
+      <span class="emoji">🤷</span>
+      <p style="font-weight:700;margin-bottom:8px">Couldn't spot safe options this time</p>
+      <p style="font-size:14px;color:var(--muted)">Use the chat below to ask specific questions — I may still be able to help.</p>
+    </div>`;
+  } else {
+    $('rec-heading').textContent = `${recs.length} dish${recs.length > 1 ? 'es' : ''} that work for you`;
+    recs.forEach(rec => {
+      const { cls, badge, label } = confidenceInfo(rec.confidence);
+      const card = document.createElement('div');
+      card.className = `rec-card ${cls}`.trim();
+      card.innerHTML = `
+        <div class="rec-top">
+          <span class="rec-name">${rec.item}</span>
+          <span class="badge ${badge}">${label}</span>
+        </div>
+        <div class="rec-loc">📍 ${rec.location}</div>
+        <div class="rec-why">${rec.why}</div>
+        ${rec.note ? `<div class="rec-note">💬 ${rec.note}</div>` : ''}
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  // Server note
+  const sw = $('server-wrap');
+  sw.innerHTML = '';
+  if (r.ask_server) {
+    sw.innerHTML = `<div class="server-note"><strong>🙋 Worth asking your server:</strong> ${r.ask_server}</div>`;
+  }
+
+  // Reset chat
+  $('chat-msgs').innerHTML = '';
+}
+
+// ── CHAT ───────────────────────────────────────────────────────────────────
+function addBubble(text, who) {
+  const div = document.createElement('div');
+  div.className = `bubble bubble-${who}`;
+  div.textContent = text;
+  $('chat-msgs').appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  return div;
+}
+
+function showTyping() {
+  const div = document.createElement('div');
+  div.className = 'typing-wrap';
+  div.id = 'typing';
+  div.innerHTML = `<div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  $('chat-msgs').appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+async function sendChat() {
+  const input = $('chat-input');
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = ''; input.style.height = 'auto';
+  $('btn-send').disabled = true;
+
+  addBubble(text, 'user');
+  state.chatMessages.push({ role: 'user', content: text });
+  showTyping();
+
+  try {
+    const res = await fetch(`${WORKER_URL}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages:     state.chatMessages.slice(-10),
+        menuContext:  state.menuContext,
+        restrictions: state.restrictions,
+        preferences:  state.preferences,
+      }),
+    });
+    const data = await res.json();
+    $('typing')?.remove();
+    if (!res.ok || data.error) throw new Error(data.error || 'Failed');
+    state.chatMessages.push({ role: 'assistant', content: data.reply });
+    addBubble(data.reply, 'ai');
+  } catch (err) {
+    $('typing')?.remove();
+    addBubble("Sorry, I couldn't reach the server right now. Please check your connection.", 'ai');
+  }
+
+  $('btn-send').disabled = false;
+}
+
+$('btn-send').addEventListener('click', sendChat);
+$('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+$('chat-input').addEventListener('input', function () {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+// ── NAVIGATION ─────────────────────────────────────────────────────────────
+function goToScan() {
+  resetCamera();
+  $('scan-prompt').classList.remove('hidden');
+  $('scan-loading').classList.add('hidden');
+  $('scan-error').classList.add('hidden');
+  $('scan-results').classList.add('hidden');
+  state.scanResult = null; state.chatMessages = []; state.menuContext = null;
+  show('screen-scan');
+}
+
+$('btn-next-1').addEventListener('click', () => {
+  state.restrictions = getChecked('restrictions-grid');
+  buildPills('prefs-grid', PREFERENCES, state.preferences);
+  show('screen-prefs');
+});
+
+$('btn-next-2').addEventListener('click', async () => {
+  state.preferences = getChecked('prefs-grid');
+  await savePrefs();
+  goToScan();
+});
+
+$('btn-skip').addEventListener('click', goToScan);
+
+$('btn-edit').addEventListener('click', () => { showNew(); });
+
+$('btn-back').addEventListener('click', () => {
+  buildPills('prefs-grid', PREFERENCES, state.preferences);
+  show('screen-prefs');
+});
+
+$('btn-rescan').addEventListener('click', goToScan);
+
+$('btn-change-prefs').addEventListener('click', () => {
+  showNew();
+  show('screen-welcome');
+});
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+async function init() {
+  maybeShowBanner();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(console.error);
+  }
+
+  onAuthStateChanged(auth, async user => {
+    if (user) {
+      state.user = user;
+      const hasPrefs = await loadPrefs(user.uid);
+      if (hasPrefs) { showReturn(); } else { showNew(); }
+      show('screen-welcome');
+    }
+  });
+
+  try {
+    await signInAnonymously(auth);
+  } catch (err) {
+    console.warn('Firebase auth failed, running without persistence', err);
+    showNew();
+    show('screen-welcome');
+  }
+}
+
+init();
+</script>
+</body>
+</html>
